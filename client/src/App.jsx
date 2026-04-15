@@ -16,52 +16,33 @@ const PublicRoute = ({ children }) => {
   return !user ? children : <Navigate to="/" replace />;
 };
 
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
-
-      {/* Global Toast Notifications */}
-      <Toaster
-        position="top-right"
-        gutter={10}
+      <Toaster position="top-right" gutter={8}
         toastOptions={{
-  duration: 3500,
-  style: {
-    background: '#111',
-    color: '#fff',
-    border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '12px',
-    padding: '12px 18px',
-    fontSize: '14px',
-    fontFamily: 'Outfit, sans-serif',
-    boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
-  },
-  success: {
-    iconTheme: { primary: '#f5c518', secondary: '#111' },
-    style: { border: '1px solid rgba(245,197,24,0.2)' },
-  },
-  error: {
-    iconTheme: { primary: '#ff4d4d', secondary: '#111' },
-    style: { border: '1px solid rgba(255,77,77,0.2)' },
-  },
-}}
+          duration: 3000,
+          style: {
+            background: 'var(--bg3)',
+            color: 'var(--text)',
+            border: '1px solid var(--border2)',
+            borderRadius: '10px',
+            padding: '10px 16px',
+            fontSize: '13px',
+            fontFamily: 'Geist, sans-serif',
+            boxShadow: 'var(--shadow-lg)',
+          },
+          success: { iconTheme: { primary: '#34d399', secondary: 'var(--bg3)' }, style: { borderColor: 'rgba(52,211,153,0.2)' } },
+          error:   { iconTheme: { primary: '#f87171', secondary: 'var(--bg3)' }, style: { borderColor: 'rgba(248,113,113,0.2)' } },
+        }}
       />
-
       <Routes>
-        {/* Public Routes */}
-        <Route path="/login"    element={<PublicRoute><Login /></PublicRoute>} />
-        <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
-
-        {/* Protected Routes */}
-        <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+        <Route path="/login"       element={<PublicRoute><Login /></PublicRoute>} />
+        <Route path="/register"    element={<PublicRoute><Register /></PublicRoute>} />
+        <Route path="/"            element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/project/:id" element={<PrivateRoute><ProjectBoard /></PrivateRoute>} />
-
-        {/* Catch all */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*"            element={<Navigate to="/" replace />} />
       </Routes>
-
     </BrowserRouter>
   );
 }
-
-export default App;

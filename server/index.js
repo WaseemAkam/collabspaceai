@@ -14,21 +14,19 @@ const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
-// ── Middleware ── MUST be before routes
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ── Routes ──
-app.use('/api/auth', require('./routes/auth'));
+app.use('/api/auth',     require('./routes/auth'));
 app.use('/api/projects', require('./routes/projects'));
-app.use('/api/tasks', require('./routes/tasks'));
+app.use('/api/tasks',    require('./routes/tasks'));
 app.use('/api/messages', require('./routes/messages'));
+app.use('/api/ai',       require('./routes/ai'));
+app.use('/api/activity', require('./routes/activity'));
 
-// ── Socket ──
 socketHandler(io);
 
-// ── MongoDB + Server Start ──
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('✅ MongoDB Connected');

@@ -27,12 +27,12 @@ export default function Dashboard() {
     e.preventDefault();
     try {
       const { data } = await API.post('/projects', form);
-      toast.success('Project created!');
       setProjects(prev => [...prev, data]);
       setForm({ name: '', description: '' });
       setShowForm(false);
+      toast.success('Project created!');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to create project');
+      toast.error(err.response?.data?.message || 'Failed');
     }
   };
 
@@ -44,8 +44,11 @@ export default function Dashboard() {
     toast.success('Deleted');
   };
 
-  const COLORS = ['#f5c518','#4ade80','#60a5fa','#f472b6','#fb923c','#a78bfa'];
-  const gc = (name) => COLORS[name?.charCodeAt(0) % COLORS.length];
+  const COLORS = ['#4f8ef7','#34d399','#8b5cf6','#fbbf24','#f87171','#06b6d4'];
+  const gc = name => COLORS[name?.charCodeAt(0) % COLORS.length];
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
   return (
     <div style={s.page}>
@@ -53,117 +56,101 @@ export default function Dashboard() {
       <div style={s.wrap}>
 
         {/* Header */}
-        <div style={s.header} className="anim-fade">
+        <div style={s.header} className="fade-up">
           <div>
-            <p style={s.greet}>Good day, {user?.name?.split(' ')[0]} 👋</p>
-            <h1 style={s.title}>Your Workspace</h1>
+            <p style={s.greet}>{greeting}, {user?.name?.split(' ')[0]}</p>
+            <h1 style={s.title}>Dashboard</h1>
           </div>
-          <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}
-            style={{ padding: '12px 24px' }}>
+          <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
             {showForm ? '✕ Cancel' : '+ New Project'}
           </button>
         </div>
 
         {/* Create Form */}
         {showForm && (
-          <div style={s.formBox} className="anim-scale">
-            <h3 style={{ fontFamily:'Outfit,sans-serif', fontSize:'17px', marginBottom:'20px' }}>
-              New Project
-            </h3>
-            <form onSubmit={createProject}>
-              <div style={{ display:'flex', gap:'12px', flexWrap:'wrap' }}>
-                <div style={{ flex:1, minWidth:'200px' }}>
-                  <label className="field-label">Project Name *</label>
-                  <input placeholder="e.g. Final Year Project"
-                    value={form.name} onChange={e => setForm({...form, name: e.target.value})} required />
-                </div>
-                <div style={{ flex:2, minWidth:'200px' }}>
-                  <label className="field-label">Description</label>
-                  <input placeholder="What's this project about?"
-                    value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
-                </div>
-                <button type="submit" className="btn btn-primary"
-                  style={{ alignSelf:'flex-end', padding:'11px 24px' }}>
-                  Create →
-                </button>
+          <div style={s.formBox} className="scale-in">
+            <h3 style={s.formTitle}>Create project</h3>
+            <form onSubmit={createProject} style={s.formInner}>
+              <div style={{ flex: 1 }}>
+                <label className="label">Project name *</label>
+                <input placeholder="e.g. Final Year Project" value={form.name}
+                  onChange={e => setForm({...form, name: e.target.value})} required autoFocus />
               </div>
+              <div style={{ flex: 2 }}>
+                <label className="label">Description</label>
+                <input placeholder="What is this project about?" value={form.description}
+                  onChange={e => setForm({...form, description: e.target.value})} />
+              </div>
+              <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-end', padding: '9px 20px' }}>
+                Create →
+              </button>
             </form>
           </div>
         )}
 
         {/* Stats */}
-        <div style={s.stats} className="anim-fade d1">
+        <div style={s.stats} className="fade-up d1">
           {[
-            { icon:'🗂️', label:'Projects',      val: projects.length,                                      col:'#f5c518' },
-            { icon:'👥', label:'Team Members',  val: [...new Set(projects.flatMap(p => p.members.map(m => m._id)))].length, col:'#4ade80' },
-            { icon:'⚡', label:'Active',         val: projects.length,                                      col:'#60a5fa' },
+            { label: 'Total Projects', value: projects.length, icon: '◈', color: 'var(--blue)' },
+            { label: 'Team Members',   value: [...new Set(projects.flatMap(p => p.members.map(m => m._id)))].length, icon: '◉', color: 'var(--green)' },
+            { label: 'Active Projects', value: projects.length, icon: '◆', color: 'var(--purple)' },
           ].map((st, i) => (
             <div key={i} style={s.statCard}>
-              <span style={{ fontSize:'28px' }}>{st.icon}</span>
+              <div style={{ ...s.statIcon, color: st.color }}>{st.icon}</div>
               <div>
-                <div style={{ ...s.statVal, color: st.col }}>{st.val}</div>
+                <div style={{ ...s.statVal, color: st.color }}>{st.value}</div>
                 <div style={s.statLbl}>{st.label}</div>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Grid */}
+        {/* Projects */}
         {loading ? (
           <div style={s.center}>
-            <span className="spinner spinner-gold" style={{ width:'36px', height:'36px', borderWidth:'3px' }} />
+            <span className="spinner" style={{ width: '24px', height: '24px', borderWidth: '2px', color: 'var(--blue)' }} />
           </div>
         ) : projects.length === 0 ? (
-          <div style={s.empty} className="anim-fade">
-            <div style={{ fontSize:'56px', marginBottom:'16px' }} className="anim-float">🚀</div>
-            <h3 style={{ fontFamily:'Outfit,sans-serif', fontSize:'22px', marginBottom:'8px' }}>No projects yet</h3>
-            <p style={{ color:'#555', marginBottom:'24px' }}>Create your first project and start collaborating</p>
-            <button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Create Project</button>
+          <div style={s.empty} className="fade-up">
+            <div style={{ fontSize: '48px', marginBottom: '16px' }} className="float">🚀</div>
+            <h3 style={{ fontSize: '20px', marginBottom: '8px' }}>No projects yet</h3>
+            <p style={{ color: 'var(--text2)', marginBottom: '20px' }}>Create your first project to get started</p>
+            <button className="btn btn-primary" onClick={() => setShowForm(true)}>+ New Project</button>
           </div>
         ) : (
-          <div style={s.grid}>
-            {projects.map((p, i) => (
-              <div key={p._id} style={s.card}
-                className={`anim-fade d${Math.min(i+1,5)}`}
-                onClick={() => navigate(`/project/${p._id}`)}
-                onMouseEnter={e => {
-                  e.currentTarget.style.transform = 'translateY(-6px)';
-                  e.currentTarget.style.borderColor = 'rgba(245,197,24,0.3)';
-                  e.currentTarget.style.boxShadow = '0 20px 60px rgba(0,0,0,0.6), 0 0 30px rgba(245,197,24,0.08)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              >
-                <div style={{ ...s.cardTop, background: gc(p.name) + '15', borderBottom:`1px solid ${gc(p.name)}20` }}>
-                  <div style={{ ...s.cardAvatar, background: gc(p.name) + '20', color: gc(p.name) }}>
-                    {p.name[0].toUpperCase()}
+          <>
+            <p style={s.sectionLabel} className="fade-up d2">Projects ({projects.length})</p>
+            <div style={s.grid}>
+              {projects.map((p, i) => (
+                <div key={p._id} style={s.card}
+                  className={`fade-up d${Math.min(i+2,6)}`}
+                  onClick={() => navigate(`/project/${p._id}`)}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = gc(p.name) + '40'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px ${gc(p.name)}20`; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
+                >
+                  <div style={s.cardHead}>
+                    <div style={{ ...s.cardDot, background: gc(p.name) }} />
+                    <button className="btn btn-danger btn-sm"
+                      onClick={e => deleteProject(e, p._id)}
+                      style={{ opacity: 0.7 }}>✕</button>
                   </div>
-                  <button className="btn btn-danger btn-sm"
-                    onClick={e => deleteProject(e, p._id)}>
-                    Delete
-                  </button>
-                </div>
-                <div style={s.cardBody}>
                   <h3 style={s.cardName}>{p.name}</h3>
                   <p style={s.cardDesc}>{p.description || 'No description'}</p>
                   <div style={s.cardFoot}>
-                    <div style={s.memberStack}>
+                    <div style={s.memRow}>
                       {p.members.slice(0,4).map((m,mi) => (
-                        <div key={m._id} style={{ ...s.dot, background: COLORS[mi%COLORS.length], marginLeft: mi>0?'-8px':'0' }} title={m.name}>
+                        <div key={m._id} style={{ ...s.memDot, background: COLORS[mi%COLORS.length], marginLeft: mi>0?'-6px':'0' }}>
                           {m.name[0].toUpperCase()}
                         </div>
                       ))}
-                      <span style={s.memCount}>{p.members.length} member{p.members.length!==1?'s':''}</span>
+                      <span style={s.memTxt}>{p.members.length} member{p.members.length!==1?'s':''}</span>
                     </div>
-                    <span style={s.open}>Open →</span>
+                    <span style={{ fontSize: '12px', color: gc(p.name), fontWeight: '600' }}>Open →</span>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -171,28 +158,30 @@ export default function Dashboard() {
 }
 
 const s = {
-  page: { minHeight:'100vh', background:'#000' },
-  wrap: { maxWidth:'1200px', margin:'0 auto', padding:'40px 24px' },
-  header: { display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:'32px' },
-  greet: { color:'#555', fontSize:'14px', marginBottom:'6px' },
-  title: { fontSize:'38px', fontFamily:'Outfit,sans-serif', fontWeight:'900' },
-  formBox: { background:'#0f0f0f', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'16px', padding:'24px', marginBottom:'28px' },
-  stats: { display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'16px', marginBottom:'32px' },
-  statCard: { background:'#0a0a0a', border:'1px solid rgba(255,255,255,0.06)', borderRadius:'14px', padding:'20px 24px', display:'flex', alignItems:'center', gap:'16px' },
-  statVal: { fontFamily:'Outfit,sans-serif', fontSize:'32px', fontWeight:'900', lineHeight:1 },
-  statLbl: { fontSize:'12px', color:'#555', marginTop:'4px', letterSpacing:'0.05em' },
-  grid: { display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))', gap:'20px' },
-  card: { background:'#0a0a0a', border:'1px solid rgba(255,255,255,0.06)', borderRadius:'16px', overflow:'hidden', cursor:'pointer', transition:'all 0.25s cubic-bezier(0.16,1,0.3,1)' },
-  cardTop: { padding:'16px 20px', display:'flex', justifyContent:'space-between', alignItems:'center' },
-  cardAvatar: { width:'40px', height:'40px', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Outfit,sans-serif', fontWeight:'800', fontSize:'18px' },
-  cardBody: { padding:'16px 20px 20px' },
-  cardName: { fontSize:'17px', fontFamily:'Outfit,sans-serif', fontWeight:'700', marginBottom:'6px' },
-  cardDesc: { fontSize:'13px', color:'#555', lineHeight:1.6, marginBottom:'16px', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' },
-  cardFoot: { display:'flex', justifyContent:'space-between', alignItems:'center' },
-  memberStack: { display:'flex', alignItems:'center', gap:'6px' },
-  dot: { width:'24px', height:'24px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'10px', fontWeight:'700', color:'#000', border:'2px solid #0a0a0a' },
-  memCount: { fontSize:'12px', color:'#555', marginLeft:'8px' },
-  open: { fontSize:'13px', color:'#f5c518', fontWeight:'600', fontFamily:'Outfit,sans-serif' },
-  center: { display:'flex', justifyContent:'center', padding:'80px' },
-  empty: { textAlign:'center', padding:'80px 20px' },
+  page:        { minHeight: '100vh', background: 'var(--bg)' },
+  wrap:        { maxWidth: '1100px', margin: '0 auto', padding: '36px 24px' },
+  header:      { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px' },
+  greet:       { fontSize: '13px', color: 'var(--text2)', marginBottom: '4px' },
+  title:       { fontSize: '32px', fontWeight: '800', letterSpacing: '-0.04em' },
+  formBox:     { background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 'var(--radius-xl)', padding: '20px 24px', marginBottom: '24px' },
+  formTitle:   { fontSize: '14px', fontWeight: '600', marginBottom: '16px' },
+  formInner:   { display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' },
+  stats:       { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px', marginBottom: '32px' },
+  statCard:    { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px' },
+  statIcon:    { fontSize: '24px', fontWeight: '800', flexShrink: 0 },
+  statVal:     { fontSize: '28px', fontWeight: '800', letterSpacing: '-0.04em', lineHeight: 1 },
+  statLbl:     { fontSize: '11px', color: 'var(--text3)', marginTop: '2px', letterSpacing: '0.04em' },
+  sectionLabel:{ fontSize: '11px', color: 'var(--text3)', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: '600', marginBottom: '12px' },
+  grid:        { display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: '12px' },
+  card:        { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-xl)', padding: '20px', cursor: 'pointer', transition: 'all 0.2s ease' },
+  cardHead:    { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' },
+  cardDot:     { width: '10px', height: '10px', borderRadius: '50%' },
+  cardName:    { fontSize: '15px', fontWeight: '700', marginBottom: '6px', letterSpacing: '-0.02em' },
+  cardDesc:    { fontSize: '12px', color: 'var(--text2)', lineHeight: 1.6, marginBottom: '16px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' },
+  cardFoot:    { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  memRow:      { display: 'flex', alignItems: 'center', gap: '4px' },
+  memDot:      { width: '20px', height: '20px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: '700', color: '#fff', border: '1.5px solid var(--bg2)' },
+  memTxt:      { fontSize: '11px', color: 'var(--text3)', marginLeft: '6px' },
+  center:      { display: 'flex', justifyContent: 'center', padding: '80px' },
+  empty:       { textAlign: 'center', padding: '80px 20px' },
 };
