@@ -11,8 +11,10 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] }
+  cors: { origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE'] }
 });
+
+app.set('io', io);
 
 app.use(cors());
 app.use(express.json());

@@ -110,7 +110,6 @@ export default function Dashboard() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-  const totalMembers = [...new Set(projects.flatMap(p => p.members.map(m => m._id)))].length;
 
   return (
     <div style={s.page}>
@@ -155,7 +154,6 @@ export default function Dashboard() {
         <div style={s.stats} className="fade-up d1">
           {[
             { label: 'Total Projects', value: projects.length, icon: '◈', color: 'var(--blue)' },
-            { label: 'Team Members',   value: totalMembers, icon: '◉', color: 'var(--purple)' },
             { label: 'Completed',      value: projects.filter(p => { const t = projectTasks[p._id] || []; return t.length > 0 && t.every(x => x.status === 'done'); }).length, icon: '✓', color: 'var(--green)' },
           ].map((st, i) => (
             <div key={i} style={s.statCard}>
@@ -335,7 +333,7 @@ const s = {
   formTitle:   { fontSize: '14px', fontWeight: '700', marginBottom: '16px', color: 'var(--text)' },
   formInner:   { display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' },
 
-  stats:       { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px', marginBottom: '24px' },
+  stats:       { display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: '12px', marginBottom: '24px' },
   statCard:    {
     background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)',
     padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px',

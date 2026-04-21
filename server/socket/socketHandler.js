@@ -21,8 +21,31 @@ const socketHandler = (io) => {
         _id: message._id,
         content,
         sender: { _id: senderId, name: senderName },
-        createdAt: message.createdAt
+        createdAt: message.createdAt,
+        reactions: []
       });
+    });
+
+    // React to message
+    socket.on('reactMessage', async ({ messageId, emoji, userId, projectId }) => {
+      try {
+        const msg = await Message.findById(messageId);
+        if (!msg) return;
+
+        let react = msg.reactions.find(r => r.emoji === emoji);
+        if (react) {
+          const idx = react.users.findIndex(u => u.toString() === userId.toString());
+          if (idx > -1) react.users.splice(idx, 1);
+          else react.users.push(userId);
+          if (react.users.length === 0) {
+            msg.reactions = msg.reactions.filter(r => r.emoji !== emoji);
+          }
+        } else {
+          msg.reactions.push({ emoji, users: [userId] });
+        }
+        await msg.save();
+        io.to(projectId).emit('messageReacted', { messageId, reactions: msg.reactions });
+      } catch (e) { console.error(e); }
     });
 
     socket.on('disconnect', () => {

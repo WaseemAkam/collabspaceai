@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { io } from 'socket.io-client';
 import API from '../api/axios';
+import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import TaskCard from '../components/TaskCard';
 import CreateTaskModal from '../components/CreateTaskModal';
@@ -19,9 +21,11 @@ const COLS = [
 export default function ProjectBoard() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [project, setProject]     = useState(null);
   const [tasks, setTasks]         = useState([]);
   const [modal, setModal]         = useState(false);
+  const [editTask, setEditTask]   = useState(null);
   const [addMem, setAddMem]       = useState(false);
   const [memEmail, setMemEmail]   = useState('');
   const [panel, setPanel]         = useState(null); // 'chat' | 'activity' | 'ai' | null
@@ -30,6 +34,17 @@ export default function ProjectBoard() {
   const [summary, setSummary]     = useState('');
   const [showSummary, setShowSummary] = useState(false);
   const [aiGenLoading, setAiGenLoading] = useState(false);
+  const [aiExpanded, setAiExpanded]     = useState(false);
+  const [showAI, setShowAI]             = useState(false);
+  const [taskTab, setTaskTab]           = useState('all');
+  const aiRef = useRef(null);
+
+  // Close AI dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e) => { if (aiRef.current && !aiRef.current.contains(e.target)) setAiExpanded(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -44,6 +59,44 @@ export default function ProjectBoard() {
     };
     load();
   }, [id, navigate]);
+
+  // Real-time task updates
+  useEffect(() => {
+    const socket = io('http://localhost:5000', {
+      transports: ['websocket'],
+    });
+
+    socket.on('connect', () => {
+      socket.emit('joinRoom', id);
+    });
+
+    socket.on('taskCreated', task => {
+      setTasks(prev => {
+        if (prev.some(t => t._id === task._id)) return prev;
+        return [...prev, task];
+      });
+    });
+
+    socket.on('taskUpdated', updated => {
+      setTasks(prev => prev.map(t => t._id === updated._id ? updated : t));
+    });
+
+    socket.on('taskDeleted', taskId => {
+      setTasks(prev => prev.filter(t => t._id !== taskId));
+    });
+
+    socket.on('tasksBulkCreated', newTasks => {
+      setTasks(prev => {
+        const existingIds = new Set(prev.map(t => t._id));
+        const added = newTasks.filter(t => !existingIds.has(t._id));
+        return [...prev, ...added];
+      });
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [id]);
 
   const onDragEnd = async ({ draggableId, destination }) => {
     if (!destination) return;
@@ -98,9 +151,26 @@ export default function ProjectBoard() {
     setAiLoading(false);
   };
 
-  const colTasks = cid => tasks.filter(t => t.status === cid);
+  const colTasks = cid => tasks.filter(t => {
+    if (t.status !== cid) return false;
+    
+    // "Assigned" tab filter
+    if (taskTab === 'assigned') {
+      const aid = t.assignedTo?._id || t.assignedTo;
+      if (!aid || aid.toString() !== user.id.toString()) return false;
+    }
+
+    // Role-based filter: If not leader and NOT on 'all' tab, only show their own tasks!
+    if (!isLeader && taskTab !== 'all') {
+      const aid = t.assignedTo?._id || t.assignedTo;
+      if (!aid || aid.toString() !== user.id.toString()) return false;
+    }
+
+    return true;
+  });
   const done     = tasks.filter(t => t.status === 'done').length;
   const pct      = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
+  const isLeader = project?.myRole === 'leader';
 
   if (loading) return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
@@ -173,9 +243,21 @@ export default function ProjectBoard() {
                   {m.name[0].toUpperCase()}
                 </div>
               ))}
-              <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--border2)', marginLeft: '8px' }}
-                onClick={() => setAddMem(!addMem)}>+ Member</button>
+              {isLeader && (
+                <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--border2)', marginLeft: '8px' }}
+                  onClick={() => setAddMem(!addMem)}>+ Member</button>
+              )}
             </div>
+
+            {/* Role badge */}
+            <span style={{
+              fontSize: '11px', fontWeight: '700', padding: '3px 10px', borderRadius: '99px',
+              background: isLeader ? 'rgba(37,99,235,0.1)' : 'rgba(124,58,237,0.1)',
+              color: isLeader ? 'var(--blue)' : 'var(--purple)',
+              border: `1px solid ${isLeader ? 'rgba(37,99,235,0.25)' : 'rgba(124,58,237,0.25)'}`,
+            }}>
+              {isLeader ? '👑 Leader' : '👤 Member'}
+            </span>
 
             <button className="btn btn-secondary btn-sm" onClick={() => setPanel(panel==='chat'?null:'chat')}
               style={{ borderColor: panel==='chat' ? 'var(--blue)' : undefined }}>
@@ -185,31 +267,63 @@ export default function ProjectBoard() {
               style={{ borderColor: panel==='activity' ? 'var(--green)' : undefined }}>
               📋 Activity
             </button>
-            <button className="btn btn-primary" onClick={() => setModal(true)}>+ Task</button>
+
+            {/* Collapsible AI Tools — leader only */}
+            {isLeader && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button
+                  className="btn btn-sm"
+                  style={{
+                    background: aiExpanded ? 'var(--ai-dim)' : 'var(--bg3)',
+                    color: aiExpanded ? 'var(--ai)' : 'var(--text2)',
+                    border: aiExpanded ? '1px solid var(--ai-border)' : '1px solid var(--border2)',
+                    display: 'flex', alignItems: 'center', gap: '5px',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onClick={() => setAiExpanded(v => !v)}
+                >
+                  ✦ AI Tools
+                  <span style={{
+                    display: 'inline-block',
+                    transform: aiExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.2s ease',
+                    fontSize: '10px',
+                  }}>▾</span>
+                </button>
+
+                {aiExpanded && (
+                  <>
+                    <button className="btn btn-ai btn-sm"
+                      onClick={() => { handleAIGenerate(); setAiExpanded(false); }}
+                      disabled={aiGenLoading}>
+                      {aiGenLoading
+                        ? <><span className="spinner" style={{ color: 'white' }} /> Generating...</>
+                        : '🤖 Generate Tasks with AI'}
+                    </button>
+                    <button className="btn btn-sm"
+                      style={{ background: 'var(--ai-dim)', color: 'var(--ai)', border: '1px solid var(--ai-border)' }}
+                      onClick={() => { handleSummarize(); setAiExpanded(false); }}
+                      disabled={aiLoading}>
+                      {aiLoading
+                        ? <><span className="spinner" style={{ color: 'var(--ai)' }} /> Analyzing...</>
+                        : '📊 AI Progress Report'}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
+            {isLeader && (
+              <button className="btn btn-primary" onClick={() => setModal(true)}>+ Task</button>
+            )}
           </div>
         </div>
 
-        {/* AI Toolbar */}
-        <div style={s.aiBar} className="fade-up d1">
-          <div style={s.aiLeft}>
-            <span style={s.aiLabel}>✦ AI Tools</span>
-            <button className="btn btn-ai btn-sm" onClick={handleAIGenerate} disabled={aiGenLoading}>
-              {aiGenLoading ? <><span className="spinner" style={{color:'white'}} /> Generating...</> : '🤖 Generate Tasks with AI'}
-            </button>
-            <button className="btn btn-sm" style={{ background: 'var(--ai-dim)', color: 'var(--ai)', border: '1px solid var(--ai-border)' }}
-              onClick={handleSummarize} disabled={aiLoading}>
-              {aiLoading ? <><span className="spinner" style={{color:'var(--ai)'}} /> Analyzing...</> : '📊 AI Progress Report'}
-            </button>
-            <button className="btn btn-sm" style={{ background: 'var(--purple-dim)', color: 'var(--purple)', border: '1px solid rgba(139,92,246,0.25)' }}
-              onClick={() => setPanel(panel==='ai'?null:'ai')}>
-              💡 AI Assistant
-            </button>
-          </div>
-          <div style={s.aiRight}>
-            <span style={{ fontSize: '12px', color: 'var(--text3)' }}>
-              {done}/{tasks.length} tasks complete
-            </span>
-          </div>
+        {/* tasks complete count */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }} className="fade-up d1">
+          <span style={{ fontSize: '12px', color: 'var(--text3)' }}>
+            {done}/{tasks.length} tasks complete
+          </span>
         </div>
 
         {/* Add Member */}
@@ -228,12 +342,74 @@ export default function ProjectBoard() {
           </div>
         )}
 
+        {/* Task filter tab bar */}
+        {(() => {
+          const TASK_TABS = [
+            { id: 'all',        label: 'All Tasks',      color: '#6366f1', dim: 'rgba(99,102,241,0.1)'  },
+            { id: 'assigned',   label: 'Assigned',       color: '#ec4899', dim: 'rgba(236,72,153,0.1)'  },
+            { id: 'todo',       label: 'To Do',          color: '#6b7280', dim: 'rgba(107,114,128,0.1)' },
+            { id: 'inprogress', label: 'In Progress',    color: '#fbbf24', dim: 'rgba(251,191,36,0.1)'  },
+            { id: 'done',       label: 'Done',           color: '#34d399', dim: 'rgba(52,211,153,0.1)'  },
+          ];
+          const counts = { 
+            all: tasks.length, 
+            assigned: tasks.filter(t => (t.assignedTo?._id || t.assignedTo) === user.id).length,
+            todo: tasks.filter(t=> {
+              if (!isLeader) {
+                const aid = t.assignedTo?._id || t.assignedTo;
+                if (aid !== user.id) return false;
+              }
+              return t.status === 'todo';
+            }).length, 
+            inprogress: tasks.filter(t=> {
+              if (!isLeader) {
+                const aid = t.assignedTo?._id || t.assignedTo;
+                if (aid !== user.id) return false;
+              }
+              return t.status === 'inprogress';
+            }).length, 
+            done: tasks.filter(t=> {
+              if (!isLeader) {
+                const aid = t.assignedTo?._id || t.assignedTo;
+                if (aid !== user.id) return false;
+              }
+              return t.status === 'done';
+            }).length 
+          };
+          return (
+            <div style={s.taskSection} className="fade-up d1">
+              <div style={s.taskTabBar}>
+                {TASK_TABS.map(tt => (
+                  <button key={tt.id} onClick={() => setTaskTab(tt.id)} style={{
+                    ...s.taskTabBtn,
+                    background: taskTab === tt.id ? tt.dim : 'transparent',
+                    color: taskTab === tt.id ? tt.color : 'var(--text3)',
+                    border: taskTab === tt.id ? `1px solid ${tt.color}30` : '1px solid transparent',
+                    fontWeight: taskTab === tt.id ? '700' : '500',
+                  }}>
+                    {tt.label}
+                    <span style={{
+                      marginLeft: '5px', fontSize: '10px', fontWeight: '700',
+                      background: taskTab === tt.id ? tt.color + '20' : 'var(--bg4)',
+                      color: taskTab === tt.id ? tt.color : 'var(--text3)',
+                      borderRadius: '99px', padding: '1px 6px',
+                    }}>{counts[tt.id]}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Main: Board + Panel */}
         <div style={{ display: 'grid', gridTemplateColumns: panel ? '1fr 340px' : '1fr', gap: '16px', alignItems: 'start' }}>
           {/* Kanban */}
           <DragDropContext onDragEnd={onDragEnd}>
-            <div style={s.board}>
-              {COLS.map((col, ci) => (
+            <div style={{
+              ...s.board,
+              gridTemplateColumns: (taskTab === 'all' || taskTab === 'assigned') ? 'repeat(3,1fr)' : '1fr',
+            }}>
+              {COLS.filter(col => taskTab === 'all' || taskTab === 'assigned' || col.id === taskTab).map((col, ci) => (
                 <div key={col.id} style={s.col} className={`fade-up d${ci+2}`}>
                   <div style={s.colHead}>
                     <div style={s.colLeft}>
@@ -248,17 +424,23 @@ export default function ProjectBoard() {
                     {(prov, snap) => (
                       <div ref={prov.innerRef} {...prov.droppableProps}
                         style={{ ...s.drop, background: snap.isDraggingOver ? col.dim : 'transparent', borderColor: snap.isDraggingOver ? col.color + '30' : 'transparent' }}>
-                        {colTasks(col.id).map((task, idx) => (
-                          <Draggable key={task._id} draggableId={task._id} index={idx}>
-                            {(prov2, snap2) => (
+                        {colTasks(col.id).map((task, idx) => {
+                          const isMine = (task.assignedTo?._id || task.assignedTo) === user.id;
+                          const canDrag = isLeader || isMine;
+                          return (
+                            <Draggable key={task._id} draggableId={task._id} index={idx} isDragDisabled={!canDrag}>
+                              {(prov2, snap2) => (
                               <div ref={prov2.innerRef} {...prov2.draggableProps} {...prov2.dragHandleProps}
                                 style={{ ...prov2.draggableProps.style, opacity: snap2.isDragging ? 0.8 : 1 }}>
-                                <TaskCard task={task} onDelete={did => setTasks(p => p.filter(t => t._id !== did))} />
+                                <TaskCard task={task} isLeader={isLeader}
+                                  onEdit={t => setEditTask(t)}
+                                  onDelete={did => setTasks(p => p.filter(t => t._id !== did))} />
                               </div>
                             )}
                           </Draggable>
-                        ))}
-                        {prov.placeholder}
+                        );
+                      })}
+                      {prov.placeholder}
                         {colTasks(col.id).length === 0 && !snap.isDraggingOver && (
                           <div style={s.emptyCol}>
                             <p style={{ color: 'var(--text3)', fontSize: '12px' }}>No tasks</p>
@@ -291,11 +473,36 @@ export default function ProjectBoard() {
         </div>
       </div>
 
-      {modal && (
-        <CreateTaskModal projectId={id} members={project?.members || []}
-          onClose={() => setModal(false)}
-          onCreated={task => setTasks(p => [...p, task])} />
+      {(modal || editTask) && (
+        <CreateTaskModal
+          projectId={id}
+          members={project?.members || []}
+          taskToEdit={editTask}
+          onClose={() => { setModal(false); setEditTask(null); }}
+          onCreated={task => setTasks(p => [...p, task])}
+          onUpdated={task => setTasks(p => p.map(t => t._id === task._id ? task : t))}
+        />
       )}
+
+      {/* Floating AI Assistant — bottom right */}
+      <div style={s.fab}>
+        {showAI && (
+          <div style={s.aiPopup} className="scale-in">
+            <AIAssistant project={project} tasks={tasks} onClose={() => setShowAI(false)} />
+          </div>
+        )}
+        <button
+          style={{
+            ...s.fabBtn,
+            background: showAI ? 'var(--grad-ai)' : 'var(--grad)',
+            boxShadow: showAI ? '0 4px 24px rgba(139,92,246,0.45)' : '0 4px 20px rgba(37,99,235,0.4)',
+          }}
+          onClick={() => setShowAI(v => !v)}
+          title="AI Assistant"
+        >
+          {showAI ? '✕' : '✦'}
+        </button>
+      </div>
     </div>
   );
 }
@@ -320,6 +527,14 @@ const s = {
   aiLabel:     { fontSize: '11px', fontWeight: '600', color: 'var(--ai)', letterSpacing: '0.06em', marginRight: '4px' },
   aiRight:     { display: 'flex', alignItems: 'center', gap: '8px' },
   memBox:      { background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 'var(--radius-lg)', padding: '16px 20px', marginBottom: '16px' },
+  aiDropdown:  {
+    position: 'fixed', top: 'auto', right: 'auto',
+    background: 'var(--bg2)', border: '1px solid var(--border2)',
+    borderRadius: 'var(--radius-lg)', padding: '8px',
+    boxShadow: 'var(--shadow-lg)', zIndex: 9999,
+    display: 'flex', flexDirection: 'column', gap: '6px',
+    minWidth: '220px',
+  },
   board:       { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px' },
   col:         { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-xl)', padding: '14px', minHeight: '500px', display: 'flex', flexDirection: 'column' },
   colHead:     { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid var(--border)' },
@@ -329,4 +544,12 @@ const s = {
   drop:        { flex: 1, borderRadius: 'var(--radius)', border: '2px dashed transparent', transition: 'all 0.15s', padding: '2px', minHeight: '400px' },
   emptyCol:    { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '160px' },
   sidePanel:   { position: 'sticky', top: '68px', height: 'calc(100vh - 100px)' },
+  fab:         { position: 'fixed', bottom: '28px', right: '28px', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px' },
+  fabBtn:      { width: '52px', height: '52px', borderRadius: '50%', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', color: '#fff', transition: 'all 0.2s ease', flexShrink: 0 },
+  aiPopup:     { width: '360px', height: '520px', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 12px 50px rgba(0,0,0,0.22)', display: 'flex', flexDirection: 'column' },
+  taskSection: { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-xl)', marginBottom: '16px', overflow: 'hidden' },
+  taskTabBar:  { display: 'flex', gap: '4px', padding: '10px 12px', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' },
+  taskTabBtn:  { padding: '5px 12px', fontSize: '12px', borderRadius: '99px', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s ease', display: 'flex', alignItems: 'center', border: '1px solid transparent' },
+  taskGrid:    { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '10px', padding: '12px' },
+  taskCard:    { background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 14px', transition: 'box-shadow 0.15s ease' },
 };

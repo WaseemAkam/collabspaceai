@@ -4,8 +4,12 @@ import API from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
+const ROLES = [
+  // Roles removed from global sign up
+];
+
 export default function Register() {
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [form, setForm]     = useState({ name: '', email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -61,7 +65,6 @@ export default function Register() {
             ))}
           </div>
 
-          {/* Decorative checklist */}
           <div style={s.checkList}>
             {['Kanban board with drag & drop', 'Real-time team chat', 'AI-powered task generation', 'Progress reports & analytics'].map((item, i) => (
               <div key={i} style={s.checkItem}>
@@ -75,14 +78,14 @@ export default function Register() {
 
       <div style={s.right}>
         <div style={s.card} className="scale-in">
-          <div style={{ marginBottom: '28px' }}>
+          <div style={{ marginBottom: '24px' }}>
             <h2 style={{ fontSize: '24px', marginBottom: '6px', fontWeight: '800', letterSpacing: '-0.03em', color: 'var(--text)' }}>
               Create account
             </h2>
             <p style={{ fontSize: '13px', color: 'var(--text2)' }}>Join your team on CollabSpace</p>
           </div>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
               <label className="label">Full Name</label>
               <input
@@ -119,7 +122,7 @@ export default function Register() {
             </button>
           </form>
 
-          <p style={{ textAlign: 'center', marginTop: '24px', fontSize: '13px', color: 'var(--text2)' }}>
+          <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--text2)' }}>
             Have an account?{' '}
             <Link to="/login" style={{ color: 'var(--blue)', textDecoration: 'none', fontWeight: '600' }}>Sign in</Link>
           </p>
@@ -131,48 +134,20 @@ export default function Register() {
 
 const s = {
   page:      { minHeight: '100vh', display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', background: 'var(--bg)' },
-  left:      {
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    padding: '60px', borderRight: '1px solid var(--border)',
-    background: 'var(--bg2)',
-  },
+  left:      { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px', borderRight: '1px solid var(--border)', background: 'var(--bg2)' },
   inner:     { maxWidth: '460px', width: '100%' },
   brand:     { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '52px' },
-  brandMark: {
-    width: '34px', height: '34px', borderRadius: '9px',
-    background: 'var(--bg3)', border: '1px solid var(--border2)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    boxShadow: 'var(--shadow)',
-  },
+  brandMark: { width: '34px', height: '34px', borderRadius: '9px', background: 'var(--bg3)', border: '1px solid var(--border2)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow)' },
   brandName: { fontWeight: '800', fontSize: '16px', letterSpacing: '-0.04em', color: 'var(--text)' },
   h1:        { fontSize: '40px', lineHeight: 1.1, marginBottom: '14px', fontWeight: '800', letterSpacing: '-0.04em', color: 'var(--text)' },
   sub:       { fontSize: '15px', color: 'var(--text2)', lineHeight: 1.7, marginBottom: '40px' },
-
   stats:     { display: 'flex', gap: '32px', marginBottom: '36px' },
   stat:      { display: 'flex', flexDirection: 'column', gap: '2px' },
   sv:        { fontSize: '17px', fontWeight: '800', color: 'var(--blue)', letterSpacing: '-0.02em' },
   sl:        { fontSize: '11px', color: 'var(--text3)', letterSpacing: '0.04em', fontWeight: '500' },
-
   checkList: { display: 'flex', flexDirection: 'column', gap: '10px' },
   checkItem: { display: 'flex', alignItems: 'center', gap: '10px' },
-  checkIcon: {
-    width: '20px', height: '20px', borderRadius: '50%',
-    background: 'var(--green-dim)', color: 'var(--green)',
-    border: '1px solid var(--green-border)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: '10px', fontWeight: '700', flexShrink: 0,
-  },
-
-  right:     {
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    padding: '40px', background: 'var(--bg)',
-  },
-  card:      {
-    width: '100%', maxWidth: '380px',
-    background: 'var(--bg2)',
-    border: '1px solid var(--border2)',
-    borderRadius: 'var(--radius-2xl)',
-    padding: '36px',
-    boxShadow: 'var(--shadow-xl)',
-  },
+  checkIcon: { width: '20px', height: '20px', borderRadius: '50%', background: 'var(--green-dim)', color: 'var(--green)', border: '1px solid var(--green-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '700', flexShrink: 0 },
+  right:     { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px', background: 'var(--bg)' },
+  card:      { width: '100%', maxWidth: '400px', background: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: 'var(--radius-2xl)', padding: '36px', boxShadow: 'var(--shadow-xl)' },
 };

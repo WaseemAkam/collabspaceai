@@ -17,7 +17,7 @@ function getDeadlineStyle(deadline, status) {
   return { color: 'var(--text3)', bg: 'transparent', label: new Date(deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) };
 }
 
-export default function TaskCard({ task, onDelete }) {
+export default function TaskCard({ task, onDelete, onEdit, isLeader }) {
   const [hov, setHov] = useState(false);
   const p = PRIORITY[task.priority] || PRIORITY.medium;
   const dl = getDeadlineStyle(task.deadline, task.status);
@@ -58,18 +58,26 @@ export default function TaskCard({ task, onDelete }) {
         }}>
           {p.label}
         </span>
-        <button
-          onClick={del}
-          style={{
-            background: 'none', border: 'none',
-            color: 'var(--text3)', cursor: 'pointer',
-            fontSize: '12px',
-            opacity: hov ? 0.7 : 0,
-            transition: 'opacity 0.15s',
-            padding: '0 2px', flexShrink: 0,
-            lineHeight: 1,
-          }}
-        >✕</button>
+        {isLeader && (
+          <div style={{ display: 'flex', gap: '4px', opacity: hov ? 1 : 0, transition: 'opacity 0.15s' }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); onEdit(task); }}
+              style={{
+                background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer',
+                fontSize: '12px', padding: '2px', lineHeight: 1
+              }}
+              title="Edit Task"
+            >✏️</button>
+            <button
+              onClick={del}
+              style={{
+                background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer',
+                fontSize: '12px', padding: '2px', lineHeight: 1
+              }}
+              title="Delete Task"
+            >✕</button>
+          </div>
+        )}
       </div>
 
       <p style={{

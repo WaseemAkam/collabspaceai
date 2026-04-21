@@ -18,10 +18,25 @@ export default function Navbar({ onAIOpen }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [notifOpen, setNotifOpen]       = useState(false);
+  const [notifOpen, setNotifOpen]         = useState(false);
   const [notifications, setNotifications] = useState([]);
-  const [projects, setProjects]         = useState([]);
+  const [projects, setProjects]           = useState([]);
+  const [dark, setDark]                   = useState(() => localStorage.getItem('theme') === 'dark');
+  const [showUserMenu, setShowUserMenu]   = useState(false);
   const notifRef = useRef();
+  const userMenuRef = useRef();
+
+  // Apply theme to <html>
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    localStorage.setItem('theme', dark ? 'dark' : 'light');
+  }, [dark]);
+
+  // Init theme from localStorage on first mount
+  useEffect(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved) document.documentElement.setAttribute('data-theme', saved);
+  }, []);
 
   // Build notifications from projects + tasks
   useEffect(() => {
@@ -89,11 +104,14 @@ export default function Navbar({ onAIOpen }) {
     load();
   }, []);
 
-  // Close notif panel on outside click
+  // Close panels on outside click
   useEffect(() => {
     const handler = (e) => {
       if (notifRef.current && !notifRef.current.contains(e.target)) {
         setNotifOpen(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setShowUserMenu(false);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -235,20 +253,79 @@ export default function Navbar({ onAIOpen }) {
           )}
         </div>
 
+        {/* Theme Toggle */}
+        <button
+          onClick={() => setDark(d => !d)}
+          title={dark ? 'Switch to Light mode' : 'Switch to Dark mode'}
+          style={{
+            ...s.iconBtn,
+            fontSize: '16px',
+            border: '1px solid var(--border2)',
+            background: 'var(--bg3)',
+          }}
+        >
+          {dark ? '☀️' : '🌙'}
+        </button>
+
         <div style={s.divider} />
 
         {/* User */}
-        <div style={s.userArea}>
-          <div style={s.avatar}>{user?.name?.[0]?.toUpperCase()}</div>
-          <div style={s.userInfo}>
-            <span style={s.userName}>{user?.name}</span>
-            <span style={s.userEmail}>{user?.email}</span>
+        <div style={{ position: 'relative' }} ref={userMenuRef}>
+          <div 
+            style={{ 
+              display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '8px', 
+              padding: '4px 8px', borderRadius: '8px', transition: 'background 0.2s' 
+            }}
+            onClick={() => setShowUserMenu(p => !p)}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg3)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            <div style={s.avatar}>{user?.name?.[0]?.toUpperCase()}</div>
+            <div style={s.userInfo}>
+              <span style={s.userName}>{user?.name}</span>
+              <span style={s.userEmail}>{user?.email}</span>
+            </div>
+            <span style={{ fontSize: '10px', color: 'var(--text3)', marginLeft: '2px' }}>▼</span>
           </div>
-        </div>
 
-        <button className="btn btn-ghost btn-sm" onClick={handleLogout} style={{ color: 'var(--text2)' }}>
-          Sign out
-        </button>
+          {showUserMenu && (
+            <div style={{
+              position: 'absolute', top: '100%', right: '0', marginTop: '8px',
+              background: 'var(--bg2)', border: '1px solid var(--border)',
+              borderRadius: '12px', padding: '8px',
+              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+              zIndex: 100, minWidth: '220px',
+            }}>
+              <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', marginBottom: '8px' }}>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text)', display: 'block' }}>{user?.name}</span>
+                <span style={{ fontSize: '11px', color: 'var(--text3)' }}>{user?.email}</span>
+              </div>
+              
+              <button 
+                className="btn btn-ghost" style={s.menuItem} 
+                onClick={() => { toast('Multi-account feature coming soon!'); setShowUserMenu(false); }}
+              >
+                <span style={{ fontSize: '14px' }}>➕</span> Add account
+              </button>
+              
+              <button 
+                className="btn btn-ghost" style={s.menuItem} 
+                onClick={() => { toast('Multi-account feature coming soon!'); setShowUserMenu(false); }}
+              >
+                <span style={{ fontSize: '14px' }}>🔄</span> Switch accounts
+              </button>
+              
+              <div style={{ height: '1px', background: 'var(--border)', margin: '8px 0' }} />
+              
+              <button 
+                className="btn btn-ghost" style={{ ...s.menuItem, color: 'var(--red)' }} 
+                onClick={handleLogout}
+              >
+                <span style={{ fontSize: '14px' }}>🚪</span> Sign out
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </nav>
   );
@@ -257,7 +334,7 @@ export default function Navbar({ onAIOpen }) {
 const s = {
   nav: {
     height: '54px',
-    background: 'rgba(248,247,244,0.92)',
+    background: 'var(--nav-bg)',
     backdropFilter: 'blur(16px)',
     borderBottom: '1px solid var(--border)',
     display: 'flex', alignItems: 'center',
@@ -333,4 +410,15 @@ const s = {
   userInfo:  { display: 'flex', flexDirection: 'column' },
   userName:  { fontSize: '12px', fontWeight: '600', lineHeight: 1.2, color: 'var(--text)' },
   userEmail: { fontSize: '10px', color: 'var(--text3)', lineHeight: 1.2 },
+
+  menuItem: {
+    width: '100%',
+    display: 'flex', alignItems: 'center', gap: '10px',
+    justifyContent: 'flex-start',
+    padding: '8px 12px',
+    fontSize: '13px',
+    fontWeight: '500',
+    color: 'var(--text)',
+    borderRadius: '6px',
+  }
 };

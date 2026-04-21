@@ -1,18 +1,42 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import API from '../api/axios';
 import toast from 'react-hot-toast';
 
-export default function CreateTaskModal({ projectId, members, onClose, onCreated }) {
+export default function CreateTaskModal({ projectId, members, onClose, onCreated, taskToEdit, onUpdated }) {
   const [form, setForm] = useState({ title: '', description: '', priority: 'medium', deadline: '', assignedTo: '' });
+
+  useEffect(() => {
+    if (taskToEdit) {
+      setForm({
+        title: taskToEdit.title || '',
+        description: taskToEdit.description || '',
+        priority: taskToEdit.priority || 'medium',
+        deadline: taskToEdit.deadline ? taskToEdit.deadline.split('T')[0] : '',
+        assignedTo: taskToEdit.assignedTo?._id || taskToEdit.assignedTo || ''
+      });
+    } else {
+      setForm({ title: '', description: '', priority: 'medium', deadline: '', assignedTo: '' });
+    }
+  }, [taskToEdit]);
   const [loading, setLoading] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data } = await API.post('/tasks', { ...form, project: projectId });
-      toast.success('Task created!');
-      onCreated(data); onClose();
+      const payload = { ...form };
+      if (!payload.assignedTo) payload.assignedTo = null;
+
+      if (taskToEdit) {
+        const { data } = await API.put(`/tasks/${taskToEdit._id}`, payload);
+        toast.success('Task updated!');
+        onUpdated(data);
+      } else {
+        const { data } = await API.post('/tasks', { ...payload, project: projectId });
+        toast.success('Task created!');
+        onCreated(data);
+      }
+      onClose();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed');
     }
@@ -26,8 +50,8 @@ export default function CreateTaskModal({ projectId, members, onClose, onCreated
       <div className="modal-box">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
           <div>
-            <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '4px' }}>New Task</h3>
-            <p style={{ fontSize: '12px', color: 'var(--text2)' }}>Add a task to the board</p>
+            <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '4px' }}>{taskToEdit ? 'Edit Task' : 'New Task'}</h3>
+            <p style={{ fontSize: '12px', color: 'var(--text2)' }}>{taskToEdit ? 'Update task details' : 'Add a task to the board'}</p>
           </div>
           <button onClick={onClose} className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--border2)' }}>✕</button>
         </div>
@@ -76,7 +100,7 @@ export default function CreateTaskModal({ projectId, members, onClose, onCreated
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
             <button type="button" className="btn btn-ghost" onClick={onClose} style={{ border: '1px solid var(--border2)' }}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? <><span className="spinner" /> Creating...</> : 'Create Task'}
+              {loading ? <><span className="spinner" /> Saving...</> : (taskToEdit ? 'Save Changes' : 'Create Task')}
             </button>
           </div>
         </form>
