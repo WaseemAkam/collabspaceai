@@ -1,14 +1,14 @@
 import axios from 'axios';
 
 let baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 if (baseURL && !baseURL.endsWith('/api')) {
-  // Strip trailing slash if present before appending /api
   baseURL = baseURL.replace(/\/$/, '') + '/api';
 }
 
 const API = axios.create({
   baseURL,
-  withCredentials: true,
+  withCredentials: false, // ✅ important
 });
 
 // REQUEST INTERCEPTOR
